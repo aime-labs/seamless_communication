@@ -77,7 +77,7 @@ Clone this repo:
 git clone https://github.com/aime-labs/seamless_communication
 ```
 
-Create mlc-container
+Create ml-container
 
 ```bash
 mlc-create sc_container Pytorch 2.1.1-aime
@@ -86,7 +86,7 @@ mlc-create sc_container Pytorch 2.1.1-aime
 Run the container:
 
 ```bash
-mlc-copen sc_container
+mlc-open sc_container
 ```
 
 Navigate to the destination of this repo and run:
