@@ -69,22 +69,44 @@ The Seamless model is the unified model for expressive streaming speech-to-speec
 - [12/14/2023] We are releasing the Seamless [tutorial](#tutorial) given at NeurIPS 2023.
 
 # Quick Start
-## Installation
-> [!NOTE]
-> One of the prerequisites is [fairseq2](https://github.com/facebookresearch/fairseq2) which has pre-built packages available only
-> for Linux x86-64 and Apple-silicon Mac computers. In addition it has a dependency on [libsndfile](https://github.com/libsndfile/libsndfile) which
-> might not be installed on your machine. If you experience any installation issues, please refer to its
-> [README](https://github.com/facebookresearch/fairseq2) for further instructions.
 
+## Installation for AIME-API
+Clone this repo:
+
+```bash
+git clone https://github.com/aime-labs/seamless_communication
 ```
-pip install .
+
+Create mlc-container
+
+```bash
+mlc-create sc_container Pytorch 2.1.1-aime
+```
+
+Run the container:
+
+```bash
+mlc-copen sc_container
+```
+
+Navigate to the destination of this repo and run:
+
+```bash
+pip install -r requirements.txt
 ```
 
 > [!NOTE]
 > Transcribing inference audio for computing metric uses [Whisper](https://github.com/openai/whisper#setup), which is automatically installed. Whisper in turn requires the command-line tool [`ffmpeg`](https://ffmpeg.org/) to be installed on your system, which is available from most package managers.
 
 
+
 ## Running inference
+
+### Running m4tv2 with AIME-API
+
+```bash
+python3 run_with_api_server.py --api_server <address of api server>
+```
 
 ### SeamlessM4T Inference
 Here’s an example of using the CLI from the root directory to run inference.
