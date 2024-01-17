@@ -15,7 +15,7 @@ import torch
 import torchaudio
 from fairseq2.generation import NGramRepeatBlockProcessor
 
-from seamless_communication.inference import SequenceGeneratorOptions, Translator
+from src.seamless_communication.inference import SequenceGeneratorOptions, Translator
 
 from aime_api_worker_interface import APIWorkerInterface
 
@@ -31,22 +31,6 @@ logger = logging.getLogger(__name__)
 
 
 def add_inference_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    parser.add_argument("--task", type=str, help="Task type")
-    parser.add_argument(
-        "--tgt_lang", type=str, help="Target language to translate/transcribe into."
-    )
-    parser.add_argument(
-        "--src_lang",
-        type=str,
-        help="Source language, only required if input is text.",
-        default=None,
-    )
-    parser.add_argument(
-        "--output_path",
-        type=Path,
-        help="Path to save the generated audio.",
-        default=None,
-    )
     parser.add_argument(
         "--model_name",
         type=str,
@@ -62,95 +46,7 @@ def add_inference_arguments(parser: argparse.ArgumentParser) -> argparse.Argumen
         help="Vocoder model name",
         default="vocoder_v2",
     )
-    # Text generation args.
-    parser.add_argument(
-        "--text_generation_beam_size",
-        type=int,
-        help="Beam size for incremental text decoding.",
-        default=5,
-    )
-    parser.add_argument(
-        "--text_generation_max_len_a",
-        type=int,
-        help="`a` in `ax + b` for incremental text decoding.",
-        default=1,
-    )
-    parser.add_argument(
-        "--text_generation_max_len_b",
-        type=int,
-        help="`b` in `ax + b` for incremental text decoding.",
-        default=200,
-    )
-    parser.add_argument(
-        "--text_generation_ngram_blocking",
-        type=bool,
-        help=(
-            "Enable ngram_repeat_block for incremental text decoding."
-            "This blocks hypotheses with repeating ngram tokens."
-        ),
-        default=False,
-    )
-    parser.add_argument(
-        "--no_repeat_ngram_size",
-        type=int,
-        help="Size of ngram repeat block for both text & unit decoding.",
-        default=4,
-    )
-    # Unit generation args.
-    parser.add_argument(
-        "--unit_generation_beam_size",
-        type=int,
-        help=(
-            "Beam size for incremental unit decoding"
-            "not applicable for the NAR T2U decoder."
-        ),
-        default=5,
-    )
-    parser.add_argument(
-        "--unit_generation_max_len_a",
-        type=int,
-        help=(
-            "`a` in `ax + b` for incremental unit decoding"
-            "not applicable for the NAR T2U decoder."
-        ),
-        default=25,
-    )
-    parser.add_argument(
-        "--unit_generation_max_len_b",
-        type=int,
-        help=(
-            "`b` in `ax + b` for incremental unit decoding"
-            "not applicable for the NAR T2U decoder."
-        ),
-        default=50,
-    )
-    parser.add_argument(
-        "--unit_generation_ngram_blocking",
-        type=bool,
-        help=(
-            "Enable ngram_repeat_block for incremental unit decoding."
-            "This blocks hypotheses with repeating ngram tokens."
-        ),
-        default=False,
-    )
-    parser.add_argument(
-        "--unit_generation_ngram_filtering",
-        type=bool,
-        help=(
-            "If True, removes consecutive repeated ngrams"
-            "from the decoded unit output."
-        ),
-        default=False,
-    )
-    parser.add_argument(
-        "--text_unk_blocking",
-        type=bool,
-        help=(
-            "If True, set penalty of UNK to inf in text generator "
-            "to block unk output."
-        ),
-        default=False,
-    )
+
     return parser
 
 
@@ -188,9 +84,8 @@ def set_generation_opts(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="M4T inference on supported tasks using Translator."
+        description="M4T inference on supported tasks using AIME-API"
     )
-    parser.add_argument("--input", type=str, help="Audio WAV file path or text input.", required=False)
     parser.add_argument(
         "--api_server", type=str, default="http://0.0.0.0:7777", help="Address of the API server"
                         )
@@ -218,15 +113,6 @@ def main() -> None:
         api_worker = APIWorkerInterface(args.api_server, WORKER_JOB_TYPE, WORKER_AUTH_KEY, args.gpu_id, world_size=1, rank=0, gpu_name=torch.cuda.get_device_name())
         while True:
             job_data = api_worker.job_request()
-            """
-            if not args.task or not args.tgt_lang:
-                raise Exception(
-                    "Please provide required arguments for evaluation -  task, tgt_lang"
-                )
-
-            if args.task.upper() in {"S2ST", "T2ST"} and args.output_path is None:
-                raise ValueError("output_path must be provided to save the generated audio")
-            """
             text_generation_opts, unit_generation_opts = set_generation_opts(job_data)
 
             logger.info(f"{text_generation_opts=}")
@@ -235,9 +121,7 @@ def main() -> None:
                 f"unit_generation_ngram_filtering={job_data.get('unit_generation_ngram_filtering', False)}"
             )
 
-            # If the input is audio, resample to 16kHz
-
-            if job_data.get('audio_input'):#, 'S2ST').upper() in {"S2ST", "ASR", "S2TT"}:
+            if job_data.get('audio_input'):
                 task = 'S2ST' if job_data.get('generate_audio', False) else 'S2TT'
                 task = 'ASR' if task == 'S2ST' and job_data.get('tgt_lang', 'eng') == job_data.get('src_lang', 'eng') else task
                 base64_data = job_data.get('audio_input').split(',')[1]
@@ -251,7 +135,7 @@ def main() -> None:
             else:
                 task = 'T2ST' if job_data.get('generate_audio', False) else 'T2TT'
                 translator_input = job_data.get('text_input')
-            print('task: ', task)
+
             text_output, speech_output = translator.predict(
                 translator_input,
                 task,
@@ -262,30 +146,21 @@ def main() -> None:
                 unit_generation_ngram_filtering=job_data.get('unit_generation_ngram_filtering', False)
             )
             
+            output = {'text_output': str(text_output[0]), 'task': task}
             if speech_output is not None:
                 with io.BytesIO() as buffer:
-                    #logger.info(f"Saving translated audio in {job_data.get('tgt_lang', 'spa')}")
                     torchaudio.save(
                         buffer,
                         speech_output.audio_wavs[0][0].to(torch.float32).cpu(),
                         format='wav',
                         sample_rate=speech_output.sample_rate,
                     )
-                    api_worker.send_job_results({'text_output': str(text_output[0]), 'audio_output': buffer})
-            else:
-                api_worker.send_job_results({'text_output': str(text_output[0])})
+                    output['audio_output'] = buffer
+                    api_worker.send_job_results(output)
+            else:                    
+                api_worker.send_job_results(output)
 
-
-            logger.info(f"Translated text in {job_data.get('tgt_lang', 'spa')}: {text_output[0]}")
-
-def convert_base64_string_to_audio(base64_string):
-    base64_data = base64_string.split(',')[1]
-    audio_data = base64.b64decode(base64_data)
-
-    with io.BytesIO(audio_data) as buffer:
-        image = convert_img(Image.open(buffer))
-    return image
-
+            logger.info(f"Translated text in {job_data.get('tgt_lang', 'spa')}: {str(text_output[0])}")
 
 
 if __name__ == "__main__":
