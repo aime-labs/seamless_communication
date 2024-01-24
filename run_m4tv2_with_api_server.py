@@ -93,7 +93,6 @@ def main() -> None:
         "--gpu_id", type=int, default=0, required=False, help="ID of the GPU to be used"
                         )
 
-
     parser = add_inference_arguments(parser)
     args = parser.parse_args()
 
@@ -104,11 +103,8 @@ def main() -> None:
         device = torch.device("cpu")
         dtype = torch.float32
 
-    
     logger.info(f"Running inference on {device=} with {dtype=}.")
-
     translator = Translator(args.model_name, args.vocoder_name, device, dtype=dtype)
-
     if args.api_server:
         api_worker = APIWorkerInterface(args.api_server, WORKER_JOB_TYPE, WORKER_AUTH_KEY, args.gpu_id, world_size=1, rank=0, gpu_name=torch.cuda.get_device_name())
         while True:
@@ -120,7 +116,6 @@ def main() -> None:
             logger.info(
                 f"unit_generation_ngram_filtering={job_data.get('unit_generation_ngram_filtering', False)}"
             )
-
             if job_data.get('audio_input'):
                 task = 'S2ST' if job_data.get('generate_audio', False) else 'S2TT'
                 task = 'ASR' if task == 'S2ST' and job_data.get('tgt_lang', 'eng') == job_data.get('src_lang', 'eng') else task
@@ -135,33 +130,35 @@ def main() -> None:
             else:
                 task = 'T2ST' if job_data.get('generate_audio', False) else 'T2TT'
                 translator_input = job_data.get('text_input')
-
-            text_output, speech_output = translator.predict(
-                translator_input,
-                task,
-                job_data.get('tgt_lang', 'spa'),
-                src_lang=job_data.get('src_lang', 'eng'),
-                text_generation_opts=text_generation_opts,
-                unit_generation_opts=unit_generation_opts,
-                unit_generation_ngram_filtering=job_data.get('unit_generation_ngram_filtering', False)
-            )
-            
-            output = {'text_output': str(text_output[0]), 'task': task}
-            if speech_output is not None:
-                with io.BytesIO() as buffer:
-                    torchaudio.save(
-                        buffer,
-                        speech_output.audio_wavs[0][0].to(torch.float32).cpu(),
-                        format='wav',
-                        sample_rate=speech_output.sample_rate,
-                    )
-                    output['audio_output'] = buffer
+            try:
+                text_output, speech_output = translator.predict(
+                    translator_input,
+                    task,
+                    job_data.get('tgt_lang', 'spa'),
+                    src_lang=job_data.get('src_lang', 'eng'),
+                    text_generation_opts=text_generation_opts,
+                    unit_generation_opts=unit_generation_opts,
+                    unit_generation_ngram_filtering=job_data.get('unit_generation_ngram_filtering', False)
+                )
+                output = {'text_output': str(text_output[0]), 'task': task}
+                if speech_output is not None:
+                    with io.BytesIO() as buffer:
+                        torchaudio.save(
+                            buffer,
+                            speech_output.audio_wavs[0][0].to(torch.float32).cpu(),
+                            format='wav',
+                            sample_rate=speech_output.sample_rate,
+                        )
+                        output['audio_output'] = buffer
+                        api_worker.send_job_results(output)
+                else:                    
                     api_worker.send_job_results(output)
-            else:                    
-                api_worker.send_job_results(output)
-
-            logger.info(f"Translated text in {job_data.get('tgt_lang', 'spa')}: {str(text_output[0])}")
-
+                logger.info(f"Translated text in {job_data.get('tgt_lang', 'spa')}: {str(text_output[0])}")
+            except RuntimeError as error:
+                logger.info(error)
+                if 'The sequence generator returned no hypothesis at index 0' in str(error):
+                    error = 'No audio input'
+                api_worker.send_job_results({'error': str(error), 'task': task})
 
 if __name__ == "__main__":
     main()
