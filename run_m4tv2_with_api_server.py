@@ -140,7 +140,7 @@ def main() -> None:
                     unit_generation_opts=unit_generation_opts,
                     unit_generation_ngram_filtering=job_data.get('unit_generation_ngram_filtering', False)
                 )
-                output = {'text_output': str(text_output[0]), 'task': task}
+                output = {'text_output': str(text_output[0]), 'task': task, 'model_name': args.model_name}
                 if speech_output is not None:
                     with io.BytesIO() as buffer:
                         torchaudio.save(
