@@ -70,7 +70,10 @@ The Seamless model is the unified model for expressive streaming speech-to-speec
 
 # Quick Start
 
-## Installation for AIME-API
+## Installation with [AIME MLC](https://github.com/aime-team/aime-ml-containers)
+
+Easy installation within an [AIME ML-Container](https://github.com/aime-team/aime-ml-containers).
+
 Clone this repo:
 
 ```bash
@@ -102,11 +105,15 @@ pip install -r requirements.txt
 
 ## Running inference
 
-### Running m4tv2 with AIME-API
+### Running SeamlessM4T as HTTP/HTTPS API with AIME API Server
+
+To run SeamlessM4T as HTTP/HTTPS API with [AIME API Server](https://github.com/aime-team/aime-api-server) start following Python script through the command line:
 
 ```bash
 python3 run_with_api_server.py --api_server <address of api server>
 ```
+
+It will start SeamlessM4T as worker, waiting for job request through the AIME API Server.
 
 ### SeamlessM4T Inference
 Here’s an example of using the CLI from the root directory to run inference.
