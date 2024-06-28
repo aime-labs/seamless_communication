@@ -83,7 +83,7 @@ git clone https://github.com/aime-labs/seamless_communication
 Create ml-container
 
 ```bash
-mlc-create sc_container Pytorch 2.1.1-aime
+mlc-create sc_container Pytorch 2.1.0-aime
 ```
 
 Run the container:
