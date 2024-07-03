@@ -16,7 +16,7 @@ import torchaudio
 from fairseq2.generation import NGramRepeatBlockProcessor
 
 from src.seamless_communication.inference import SequenceGeneratorOptions, Translator
-
+import soundfile
 from aime_api_worker_interface import APIWorkerInterface
 
 WORKER_JOB_TYPE = "sc_m4tv2"
@@ -127,10 +127,14 @@ def main() -> None:
                 audio_data = base64.b64decode(base64_data)
 
                 with io.BytesIO(audio_data) as buffer:
-                    wav, sample_rate = torchaudio.load(buffer)
-                    translator_input = torchaudio.functional.resample(
-                        wav, orig_freq=sample_rate, new_freq=16_000
-                    )
+                    try:
+                        wav, sample_rate = torchaudio.load(buffer)
+                        translator_input = torchaudio.functional.resample(
+                            wav, orig_freq=sample_rate, new_freq=16_000
+                        )
+                    except soundfile.LibsndfileError as error:
+                        api_worker.send_job_results({'error': f'Invalid audio data: {error}', 'task': task})
+                        continue
             else:
                 task = 'T2ST' if job_data.get('generate_audio', False) else 'T2TT'
                 translator_input = job_data.get('text_input')
