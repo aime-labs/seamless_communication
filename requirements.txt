@@ -1,10 +1,10 @@
-datasets
-librosa
-openai-whisper
+datasets==2.16.1
+librosa==0.10.1
+openai-whisper==20231117
 simuleval~=1.1.3
 soundfile
-scipy
-torchaudio
+scipy==1.11.4
+torchaudio==2.1.1+cu118
 aime_api_worker_interface @ git+https://github.com/aime-team/aime-api-worker-interface
 .
 --extra-index-url https://fair.pkg.atmeta.com/fairseq2/whl/pt2.1.1/cu118
