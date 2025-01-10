@@ -83,7 +83,7 @@ git clone https://github.com/aime-labs/seamless_communication
 Create ml-container
 
 ```bash
-mlc-create sc_container Pytorch 2.1.0-aime
+mlc-create -arch CUDA_AMPERE sc_container Pytorch 2.1.1-aime
 ```
 
 Run the container:
@@ -92,10 +92,10 @@ Run the container:
 mlc-open sc_container
 ```
 
-Navigate to the destination of this repo and run:
+Navigate to the destination of this repo and install the requirements:
 
 ```bash
-pip install -r requirements.txt
+pip install --extra-index-url https://fair.pkg.atmeta.com/fairseq2/whl/pt2.1.1/cu118 -r requirements.txt
 ```
 
 > [!NOTE]
